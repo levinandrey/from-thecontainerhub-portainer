@@ -1,0 +1,47 @@
+version: '2'
+
+services:
+  postgresql:
+    stdin_open: true
+    tty: true
+    
+    image: docker.io/bitnami/postgresql:13
+    volumes:
+      - 'postgresql_data:/bitnami/postgresql'
+    environment:
+      # ALLOW_EMPTY_PASSWORD is recommended only for development.
+      - ALLOW_EMPTY_PASSWORD=yes
+      - POSTGRESQL_USER=odoo
+      - POSTGRESQL_DATABASE=odoo
+      - POSTGRESQL_PASSWORD=hg983tfg80943fg893
+      - POSTGRESQL_MASTER_PORT_NUMBER=6432
+      - POSTGRESQL_PORT_NUMBER=5432
+      
+      - POSTGRESQL_MASTER_HOST=psql-main-master.internat.msu.ru
+  odoo:
+    stdin_open: true
+    tty: true
+    
+    image: docker.io/bitnami/odoo:14
+    ports:
+      - '8073:8069'
+    volumes:
+      - 'odoo_data:/bitnami/odoo'
+    depends_on:
+      - postgresql
+    environment:
+      # ALLOW_EMPTY_PASSWORD is recommended only for development.
+      #- ALLOW_EMPTY_PASSWORD=yes
+      - ODOO_DATABASE_HOST=psql-main-master.internat.msu.ru
+      - ODOO_DATABASE_PORT_NUMBER=6432
+      - ODOO_DATABASE_USER=odoo
+      - ODOO_DATABASE_NAME=odoo
+      - ODOO_DATABASE_PASSWORD=hg983tfg80943fg893
+      
+      - BITNAMI_DEBUG=true
+      
+volumes:
+  postgresql_data:
+    driver: local
+  odoo_data:
+    driver: local
