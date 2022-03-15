@@ -1,0 +1,13 @@
+version: '3'
+
+services:
+  ubuntu:
+    stdin_open: true
+    tty: true
+    restart: always
+    image: ubuntu
+
+    
+volumes:
+  over:
+    driver: local
