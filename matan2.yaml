@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  certificate-mysql:
+    image: busybox
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    command:
+      - /bin/sh 
+      - -c 
+      - |
+        date &&
+        ls -lh &&
+        wget https://storage.yandexcloud.net/cloud-certs/CA.pem --output-document=/root/mysql/root.crt && 
+        chmod 0600 /root/mysql/root.crt &&
+        /bin/sh   
+    volumes:
+      - certificate-mysql:/root/mysql
+
+  s3fs:
+    image: efrecon/s3fs-levin:latest
+    restart: unless-stopped
+    cap_add:
+      - SYS_ADMIN
+    security_opt:
+      - apparmor:unconfined
+    devices:
+      - /dev/fuse
+    environment:
+      AWS_S3_BUCKET: vzms-internat-msu-ru-bucket
+      AWS_S3_ACCESS_KEY_ID: t9wi9B8-aN3kiROxZSeM
+      AWS_S3_SECRET_ACCESS_KEY: aatfOVdztukFlkJcGP42zP4vkztp5u-WX4QACVmL
+      AWS_S3_URL: https://storage.yandexcloud.net
+      AWS_S3_MOUNT: /opt/s3fs/bucket
+      UID: 0
+      GID: 0
+      S3FS_ARGS: >
+        -o umask=027 
+        -o allow_other 
+        -o use_path_request_style
+        -o connect_timeout=600 
+        -o readwrite_timeout=120
+        -o use_cache=/cache-s3fs 
+        -o check_cache_dir_exist
+        -o max_stat_cache_size=1000000 
+        -o logfile=/log-s3fs/logfile.log
+        -o dbglevel=warn 
+        -o instance_name=vzms-internat-msu-ru-bucket
+        -o tmpdir=/tmp-s3fs
+        -o ensure_diskfree=2000
+        
+      S3FS_DEBUG: 1
+    volumes:
+      - ./bucket25:/opt/s3fs/bucket:rshared
+      - s3fs-cache:/cache-s3fs
+      - s3fs-log:/log-s3fs
+      - s3fs-tmp:/tmp-s3fs
+      
+
+volumes:
+  certificate-mysql:
+  s3fs-cache:
+  s3fs-log:
+  s3fs-tmp:
+  
+  
