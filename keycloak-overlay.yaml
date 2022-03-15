@@ -1,0 +1,33 @@
+version: '3'
+
+services:
+  keycloak:
+      restart: unless-stopped
+      stdin_open: true
+      tty: true
+      image: quay.io/keycloak/keycloak:15.0.2
+      environment:
+        DB_VENDOR: MYSQL
+        DB_ADDR: rc1b-71oajha2w0jm5ap2.mdb.yandexcloud.net
+        DB_DATABASE: keycloak
+        DB_USER: keycloak
+        DB_PASSWORD: g378fg37948fg3798
+        KEYCLOAK_USER: admin
+        KEYCLOAK_PASSWORD: g97fg37fg374f43
+        # Uncomment the line below if you want to specify JDBC parameters. The parameter below is just an example, and it shouldn't be used in production without knowledge. It is highly recommended that you read the MySQL JDBC driver documentation in order to use it.
+        JDBC_PARAMS: "ssl-ca=/root/.mysql/root.crt&&ssl-mode=VERIFY_IDENTITY"
+        PROXY_ADDRESS_FORWARDING: 'true'
+      ports:
+        - 1481:8080
+      volumes:
+        - mysqlca:/root/.mysql
+        - internat-auth-theme-overlay-keycloak-theme-volume:/opt/jboss/keycloak/themes/internat-auth-theme-overlay-keycloak-theme
+
+volumes:
+  mysqlca:
+  internat-auth-theme-overlay-keycloak-theme-volume:
+
+  
+
+
+
