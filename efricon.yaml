@@ -1,0 +1,109 @@
+version: '3.8'
+
+services:
+  s3fs:
+    image: efrecon/s3fs-levin:latest
+    restart: unless-stopped
+    cap_add:
+      - SYS_ADMIN
+    security_opt:
+      - apparmor:unconfined
+    devices:
+      - /dev/fuse
+    environment:
+      AWS_S3_BUCKET: vzms-internat-msu-ru-bucket
+      AWS_S3_ACCESS_KEY_ID: t9wi9B8-aN3kiROxZSeM
+      AWS_S3_SECRET_ACCESS_KEY: aatfOVdztukFlkJcGP42zP4vkztp5u-WX4QACVmL
+      AWS_S3_URL: https://storage.yandexcloud.net
+      AWS_S3_MOUNT: /opt/s3fs/bucket
+      UID: 0
+      GID: 0
+      S3FS_ARGS: >
+        -o umask=027 
+        -o allow_other 
+        -o use_path_request_style
+        -o connect_timeout=600 
+        -o readwrite_timeout=120
+        -o use_cache=/cache-s3fs 
+        -o check_cache_dir_exist
+        -o max_stat_cache_size=1000000 
+        -o logfile=/log-s3fs/logfile.log
+        -o dbglevel=warn 
+        -o instance_name=vzms-internat-msu-ru-bucket
+        -o tmpdir=/tmp-s3fs
+        -o ensure_diskfree=2000
+        
+      S3FS_DEBUG: 1
+    volumes:
+      - ./bucket25:/opt/s3fs/bucket:rshared
+      - cache-s3fs:/cache-s3fs
+      - log-s3fs:/log-s3fs
+      - tmp-s3fs:/tmp-s3fs
+      
+volumes:
+  cache-s3fs:
+  log-s3fs:
+  tmp-s3fs:
+  
+    #  -o del_cache 
+    
+    #  -o storage_class=standard
+    
+    #  -o max_stat_cache_size (default="100,000" entries (about 40MB))
+    
+    #  -o stat_cache_expire (default is 900))
+    #      specify expire time (seconds) for entries in the stat cache.
+    #      This expire time indicates the time since stat cached. and this
+    #      is also set to the expire time of the symbolic link cache.
+    
+    #  -o stat_cache_interval_expire (default is 900)
+    #      - specify expire time (seconds) for entries in the stat cache(and
+    #      symbolic link cache).
+    #      This expire time is based on the time from the last access time
+    #      of the stat cache. This option is exclusive with stat_cache_expire,
+    #      and is left for compatibility with older versions.
+    
+    #  -o enable_noobj_cache (default is disable)
+    #      - enable cache entries for the object which does not exist.
+    #      s3fs always has to check whether file (or sub directory) exists 
+    #      under object (path) when s3fs does some command, since s3fs has 
+    #      recognized a directory which does not exist and has files or 
+    #      sub directories under itself. It increases ListBucket request 
+    #      and makes performance bad.
+    #      You can specify this option for performance, s3fs memorizes 
+    #      in stat cache that the object (file or directory) does not exist.
+    
+    
+    #  -o ensure_diskfree (default 0)
+    #      - sets MB to ensure disk free space.  This option means the
+    #      threshold of free space size on disk which is used for the
+    #      cache file by s3fs.  s3fs makes file for
+    #      downloading, uploading and caching files. If the disk free
+    #      space is smaller than this value, s3fs do not use diskspace
+    #      as possible in exchange for the performance.
+    
+    
+    #  -o mp_umask (default is "0000")
+    #      - sets umask for the mount point directory.
+    #      If allow_other option is not set, s3fs allows access to the mount
+    #      point only to the owner. In the opposite case s3fs allows access
+    #      to all users as the default. But if you set the allow_other with
+    #      this option, you can control the permissions of the
+    #      mount point by this option like umask.
+    
+    
+    #  -o umask (default is "0000")
+    #      - sets umask for files under the mountpoint.  This can allow
+    #      users other than the mounting user to read and write to files
+    #      that they did not create.
+    
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
