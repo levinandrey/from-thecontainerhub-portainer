@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  certificate:
+    image: busybox
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    command:
+      - /bin/sh 
+      - -c 
+      - |
+        date &&
+        ls -lh &&
+        wget https://storage.yandexcloud.net/cloud-certs/CA.pem --output-document=/root/mysql/root.crt && 
+        chmod 0600 /root/mysql/root.crt &&
+        /bin/sh   
+    volumes:
+      - certificate-local:/root/mysql
+volumes:
+  certificate-local:
+  
+  
