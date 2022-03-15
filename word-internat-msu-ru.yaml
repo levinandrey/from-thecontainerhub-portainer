@@ -1,0 +1,208 @@
+version: '3.9'
+
+services:
+  setup-certificate-mysql:
+    container_name: setup-certificate-mysql-container
+    image: ubuntu
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    command:
+      - /bin/sh
+      - -c 
+      - |
+        apt update &&
+        apt install -y wget &&
+        wget https://storage.yandexcloud.net/cloud-certs/CA.pem --output-document=/root/mysql/root.crt && 
+        chmod 0666 /root/mysql/root.crt &&
+        apt install -y python3 &&
+        (python3 -m http.server --cgi 3000 &> /dev/null 2>&1 & ) &&
+        /bin/sh  
+    volumes:
+      - certificate-mysql:/root/mysql
+    networks:
+      - wait-for-it-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+  s3fs-wpcontent-uploads:
+    container_name: s3fs-wpcontent-uploads-container
+    image: efrecon/s3fs-levin:latest
+    restart: unless-stopped
+    cap_add:
+      - SYS_ADMIN
+    security_opt:
+      - apparmor:unconfined
+    devices:
+      - /dev/fuse
+    environment:
+      AWS_S3_BUCKET: word-internat-msu-ru-bucket
+      AWS_S3_ACCESS_KEY_ID: TKoOENwh978Rbc5ygGFW
+      AWS_S3_SECRET_ACCESS_KEY: oH4GwblKIdwGSsz7-v3-ubhm-ESeGFVwpuo6A8lY
+      AWS_S3_URL: https://storage.yandexcloud.net
+      AWS_S3_MOUNT: /var/www/html/wp-content/uploads
+      #UID: 33
+      #GID: 33
+      S3FS_ARGS: >
+        -o umask=027 
+        -o allow_other 
+        -o use_path_request_style
+        -o connect_timeout=600 
+        -o readwrite_timeout=120
+        -o use_cache=/cache-s3fs 
+        -o check_cache_dir_exist
+        -o max_stat_cache_size=1000000 
+        -o logfile=/log-s3fs/logfile.log
+        -o dbglevel=warn 
+        -o instance_name=word-internat-msu-ru-bucket
+        -o tmpdir=/tmp-s3fs
+        -o ensure_diskfree=500
+        
+      S3FS_DEBUG: 1
+    volumes:
+      - ./word-wp-content-uploads-01:/var/www/html/wp-content/uploads:rshared
+      - s3fs-wpcontent-uploads-cache:/cache-s3fs
+      - s3fs-wpcontent-uploads-log:/log-s3fs
+      - s3fs-wpcontent-uploads-tmp:/tmp-s3fs
+    networks:
+      - wait-for-it-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+  setup-wp:
+    container_name: setup-wp-container
+    image: ubuntu
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    depends_on:
+      - s3fs-wpcontent-uploads
+    command:
+      - /bin/sh
+      - -c 
+      - |
+        apt update &&
+        apt install -y git &&
+        git config --global user.email root@localhost &&
+        git config --global user.name root@localhost &&
+        cd /root/project &&
+        rm -fr repo &&
+        git clone https://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@github.com/theaesc/word-internat-msu-ru.git repo &&
+        apt install -y python3 &&
+        (python3 -m http.server --cgi 3000 &> /dev/null 2>&1 & ) &&
+        /bin/sh   
+    volumes:
+      - project-repo-git:/root/project
+      - wordpress:/var/www/html
+      - wp-content-themes:/var/www/html/wp-content/themes
+    networks:
+      - wait-for-it-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+  wordpress:
+    container_name: wordpress-container
+    image: wordpress
+    restart: always
+    ports:
+      - 8098:80
+    depends_on:
+      - setup-certificate-mysql
+      - setup-wp
+    command:
+      - /bin/sh
+      - -c 
+      - |
+        apt update &&
+        apt install -y nano &&
+        apt install -y wget &&
+        wget https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh --output-document=/root/wait-for-it.sh && 
+        chmod +x /root/wait-for-it.sh &&
+        /root/wait-for-it.sh --timeout=120 setup-certificate-mysql-container:3000 -- echo "WAIT setup-certificate-mysql-container is UP" &&
+        /root/wait-for-it.sh --timeout=120 setup-wp-container:3000 -- echo "WAIT setup-wp-container is UP" &&
+        apt install -y python3 &&
+        (python3 -m http.server --cgi 3000 &> /dev/null 2>&1 & ) &&
+        /bin/sh   
+    environment:
+      WORDPRESS_DB_HOST: rc1b-71oajha2w0jm5ap2.mdb.yandexcloud.net
+      WORDPRESS_DB_USER: word-internat-msu-ru
+      WORDPRESS_DB_PORT: word-internat-msu-ru
+      WORDPRESS_DB_PASSWORD: 97o8gf340fg34gfv348f
+      WORDPRESS_DB_NAME: word-internat-msu-ru
+      WORDPRESS_DEBUG: 1
+      WORDPRESS_CONFIG_EXTRA: >
+          define('MYSQL_CLIENT_FLAGS', MYSQLI_CLIENT_SSL );
+          define('MYSQL_SSL_CA', '/root/mysql/root.crt');
+          
+          define('ALLOW_UNFILTERED_UPLOADS', true);
+          
+          # define( 'WP_CONTENT_URL', get_option( 'siteurl' ) . '/media' );
+    volumes:
+      - wordpress:/var/www/html
+      - certificate-mysql:/root/mysql
+      - ./word-wp-content-uploads-01:/var/www/html/wp-content/uploads:rshared
+      - wp-content-themes:/var/www/html/wp-content/themes
+      - project-repo-git:/root/project
+    networks:
+      - wait-for-it-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10" 
+  cron-git-repo:
+    container_name: cron-git-repo-container
+    image: ubuntu
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    depends_on:
+      - wordpress
+    command:
+      - /bin/sh
+      - -c 
+      - |
+        apt update &&
+        apt install -y nano &&
+        apt install -y git &&
+        git config --global user.email root@localhost &&
+        git config --global user.name root@localhost &&
+        apt install -y systemctl &&
+        apt install -y cron &&
+        systemctl enable cron &&
+        systemctl start cron &&
+        crontab -u root /root/project/repo/crontab-git.crontab &&
+        apt install -y wget &&
+        wget https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh --output-document=/root/wait-for-it.sh && 
+        chmod +x /root/wait-for-it.sh &&
+        /root/wait-for-it.sh --timeout=120 wordpress-container:3000 -- echo "WAIT wordpress-container is UP" &&
+        /bin/sh   
+    volumes:
+      - project-repo-git:/root/project
+    networks:
+      - wait-for-it-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"     
+volumes:
+  certificate-mysql:
+  s3fs-wpcontent-uploads-cache:
+  s3fs-wpcontent-uploads-log:
+  s3fs-wpcontent-uploads-tmp:
+  wordpress:
+  wp-content-themes:
+  project-repo-git:
+networks:
+  wait-for-it-net:
+  
+  
+  
+  
