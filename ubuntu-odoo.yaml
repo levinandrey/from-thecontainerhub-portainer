@@ -1,0 +1,15 @@
+version: '3'
+
+services:
+  ubuntu:
+    stdin_open: true
+    tty: true
+    ports:
+      - "8091:8069"
+    restart: unless-stopped
+    image: ubuntu
+    
+    
+    
+    
+    
